@@ -60,9 +60,10 @@ from guiguts.preferences import preferences, PrefKey
 from guiguts.root import root
 from guiguts.search import show_search_dialog, find_next
 from guiguts.spell import spell_check
-from guiguts.tools.pptxt import pptxt
+from guiguts.tools.bookloupe import bookloupe_check
 from guiguts.tools.jeebies import jeebies_check, JeebiesParanoiaLevel
 from guiguts.tools.levenshtein import levenshtein_check, LevenshteinEditDistance
+from guiguts.tools.pptxt import pptxt
 from guiguts.utilities import is_mac, folder_dir_str
 from guiguts.widgets import themed_style, theme_name_internal_from_user
 from guiguts.word_frequency import word_frequency, WFDisplayType, WFSortType
@@ -696,6 +697,7 @@ Fifth Floor, Boston, MA 02110-1301 USA."""
         menu_tools = Menu(menubar(), "~Tools")
         menu_tools.add_button("Basic Fi~xup...", basic_fixup_check)
         menu_tools.add_button("~Word Frequency...", word_frequency)
+        menu_tools.add_button("~Bookloupe...", bookloupe_check)
         menu_tools.add_button(
             "~Spelling...",
             lambda: spell_check(

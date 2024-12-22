@@ -102,6 +102,11 @@ Word Frequency
 Tools
 *****
 
+Bookloupe
+=========
+    
+.. automodule:: tools.bookloupe
+
 Jeebies
 =======
     
