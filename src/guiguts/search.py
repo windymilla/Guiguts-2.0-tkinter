@@ -10,7 +10,7 @@ from typing import Any, Tuple, Optional
 import regex as re
 
 from guiguts.checkers import CheckerDialog
-from guiguts.maintext import maintext, TclRegexCompileError, FindMatch
+from guiguts.maintext import maintext, TclRegexCompileError, FindMatch, HighlightTag
 from guiguts.preferences import preferences, PersistentBoolean, PrefKey
 from guiguts.utilities import sound_bell, IndexRowCol, IndexRange, sing_plur
 from guiguts.widgets import (
@@ -292,6 +292,9 @@ class SearchDialog(ToplevelDialog):
         self.config_width()
         self.allow_geometry_save()
 
+        # Handle tag cleanup when search panel is closed
+        self.top_frame.bind("<Destroy>", lambda _event: maintext().remove_search_highlights())
+    
     def show_multi_replace(self, show: bool, resize: bool = True) -> None:
         """Show or hide the multi-replace buttons.
 
@@ -365,7 +368,15 @@ class SearchDialog(ToplevelDialog):
             start_rowcol = get_search_start(backwards)
         stop_rowcol = maintext().start() if backwards else maintext().end()
         message = ""
+        maintext().remove_search_highlights()
         try:
+            matchez = self.count_clicked()
+            for matchz in matchez:
+                maintext().tag_add(
+                    HighlightTag.SEARCH,
+                    matchz.rowcol.index(),
+                    f"{matchz.rowcol.index()}+{matchz.count}c",
+                )
             _do_find_next(
                 search_string, backwards, IndexRange(start_rowcol, stop_rowcol)
             )

@@ -275,6 +275,7 @@ class HighlightTag(StrEnum):
     ALIGNCOL = auto()
     CURSOR_LINE = auto()
     COLUMN_RULER = auto()
+    SEARCH = auto()
 
 
 class HighlightColors:
@@ -348,6 +349,21 @@ class HighlightColors:
     COLUMN_RULER = {
         "Light": {"bg": "#A6CDFF", "fg": "black"},
         "Dark": {"bg": "#324F78", "fg": "white"},
+    }
+
+    SEARCH = {
+        "Light": {
+            "bg": "#f0f0f0",
+            "fg": "#a8a8a8",
+            "relief": "ridge",
+            "borderwidth": 2,
+        },
+        "Dark": {
+            "bg": "#0f0f0f",
+            "fg": "#8a8a8a",
+            "relief": "ridge",
+            "borderwidth": 2,
+        },
     }
 
 
@@ -2834,6 +2850,12 @@ class MainText(tk.Text):
             background=tag_colors[theme]["bg"],
             foreground=tag_colors[theme]["fg"],
         )
+        if "relief" in tag_colors[theme] and "borderwidth" in tag_colors[theme]:
+            self.tag_configure(
+                tag_name,
+                relief=tag_colors[theme]["relief"],
+                borderwidth=tag_colors[theme]["borderwidth"],
+            )
 
     def highlight_selection(
         self,
@@ -2861,8 +2883,13 @@ class MainText(tk.Text):
                     tag_name, match.rowcol.index(), match.rowcol.index() + "+1c"
                 )
 
+    def remove_search_highlights(self) -> None:
+        """Remove highlights for search"""
+        self.tag_remove(HighlightTag.SEARCH, "1.0", tk.END)
+
     def remove_highlights(self) -> None:
         """Remove active highlights."""
+        self.remove_search_highlights()
         self.tag_remove(HighlightTag.QUOTEMARK, "1.0", tk.END)
 
     def highlight_quotemarks(self, pat: str) -> None:
@@ -3239,6 +3266,7 @@ class MainText(tk.Text):
             (HighlightTag.QUOTEMARK, HighlightColors.QUOTEMARK),
             # "sel" is for active selections - don't override the default color
             ("sel", None),
+            (HighlightTag.SEARCH, HighlightColors.SEARCH),
             (HighlightTag.SPOTLIGHT, HighlightColors.SPOTLIGHT),
             (HighlightTag.PAREN, HighlightColors.PAREN),
             (HighlightTag.CURLY_BRACKET, HighlightColors.CURLY_BRACKET),
