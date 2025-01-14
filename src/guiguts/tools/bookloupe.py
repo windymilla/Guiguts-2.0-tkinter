@@ -334,13 +334,11 @@ class BookloupeChecker:
             return
         # Ignoring any character that is not alphanumeric or sentence-ending punctuation,
         # last character (ignoring inline markup) must be sentence-ending punctuation.
-        se_punc = "-—.:!?"
+        para_punc = re.escape("])}-—.:!?")
         last_line = para_text.splitlines()[-1]
-        last_line = re.sub(
-            rf"[^{se_punc}()[]{{}}\p{{Letter}}\p{{Number}}", "", last_line
-        )
+        last_line = re.sub(rf"[^{para_punc}\p{{Letter}}\p{{Number}}]", "", last_line)
         last_line = self.remove_inline_markup(last_line)
-        if last_line[-1] not in se_punc:
+        if last_line[-1] not in para_punc:
             self.dialog.add_entry(
                 "No punctuation at para end?",
                 IndexRange(maintext().rowcol(f"{end_index}-1c"), end_index),
