@@ -1853,21 +1853,25 @@ class CurlyQuotesDialog(CheckerDialog):
             frame,
             text="Open⇔Close",
             command=self.swap_open_close,
+            takefocus=False,
         ).grid(column=0, row=0, sticky="NSW")
         ttk.Button(
             frame,
             text="Straight⇔Curly",
             command=self.swap_straight_curly,
+            takefocus=False,
         ).grid(column=1, row=0, sticky="NSW")
         ttk.Button(
             frame,
             text="Swap Quote/Space",
             command=self.swap_quote_space,
+            takefocus=False,
         ).grid(column=2, row=0, sticky="NSW")
         ttk.Button(
             frame,
             text="Delete Space",
             command=lambda: self.swap_quote_space(delete=True),
+            takefocus=False,
         ).grid(column=3, row=0, sticky="NSW")
         ttk.Label(
             frame,
@@ -1877,21 +1881,25 @@ class CurlyQuotesDialog(CheckerDialog):
             frame,
             text=DQUOTES[0],
             command=lambda: insert_in_focus_widget(DQUOTES[0]),
+            takefocus=False,
         ).grid(column=5, row=0, sticky="NSE")
         ttk.Button(
             frame,
             text=DQUOTES[1],
             command=lambda: insert_in_focus_widget(DQUOTES[1]),
+            takefocus=False,
         ).grid(column=6, row=0, sticky="NSE")
         ttk.Button(
             frame,
             text=SQUOTES[0],
             command=lambda: insert_in_focus_widget(SQUOTES[0]),
+            takefocus=False,
         ).grid(column=7, row=0, sticky="NSE")
         ttk.Button(
             frame,
             text=SQUOTES[1],
             command=lambda: insert_in_focus_widget(SQUOTES[1]),
+            takefocus=False,
         ).grid(column=8, row=0, sticky="NSE")
         self.populate()
 
@@ -2031,11 +2039,15 @@ class CurlyQuotesDialog(CheckerDialog):
             # Temporarily change mark gravities so moved space ends up outside marks
             maintext().mark_gravity(start_mark, tk.RIGHT)
             maintext().mark_gravity(end_mark, tk.LEFT)
-            if match_text[0] == " " and match_text[2] != " ":
+            # If only space before, or space both sides and it's close quote, swap/delete space before
+            if match_text[0] == " " and (match_text[2] != " " or match_text[1] in "”’"):
                 maintext().delete(start)
                 if not delete:
                     maintext().insert(f"{start}+1c", " ")
-            elif match_text[0] != " " and match_text[2] == " ":
+            # If only space after, or space both sides and it's open quote, swap/delete space after
+            elif (match_text[0] != " " or match_text[1] in "“‘") and match_text[
+                2
+            ] == " ":
                 maintext().delete(f"{start}+2c")
                 if not delete:
                     maintext().insert(f"{start}+1c", " ")
