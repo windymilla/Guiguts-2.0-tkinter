@@ -407,6 +407,33 @@ class CheckerDialog(ToplevelDialog):
                     maintext().mark_unset(mark)
             maintext().remove_spotlights()
 
+    def add_undo_redo_callback(self, func: Callable[[], None]) -> None:
+        """Add callback function to a list of functions to be called when
+        <<Undo>> or <<Redo>> virtual events happen.
+
+        Callback will be remove by `tidy_up` when checker dialog destroyed.
+
+        Args:
+            key: Key to identify the caller, e.g. dialog class name
+            func: Callback function to be added to list.
+        """
+        maintext().add_undo_redo_callback(self.__class__.__name__, func)
+
+    def tidy_up(self, event: tk.Event) -> None:
+        """Tidy up when the dialog is destroyed.
+
+        Calls the reset method which may be overridden.
+
+        Args:
+            event: identifies the widget being destroyed.
+        """
+        # Since this method is bound to the "<Destroy>" event on the dialog,
+        # it will also be called for all child widgets - ignore them.
+        if not issubclass(type(event.widget), ToplevelDialog):
+            return
+        super().tidy_up(event)
+        maintext().remove_undo_redo_callback(self.__class__.__name__)
+
     def new_section(self) -> None:
         """Start a new section in the dialog.
 
@@ -907,7 +934,11 @@ class CheckerDialog(ToplevelDialog):
         self.text.mark_set(tk.INSERT, f"{linenum}.0")
         self.text.focus_set()
         self.text.tag_remove("sel", "1.0", tk.END)
-        entry = self.entries[entry_index]
+        self.lift()
+        try:
+            entry = self.entries[entry_index]
+        except IndexError:
+            return  # OK if index is no longer valid
         self.selected_text = entry.text
         self.selected_text_range = entry.text_range
         maintext().remove_spotlights()
@@ -921,7 +952,6 @@ class CheckerDialog(ToplevelDialog):
                 IndexRowCol(start), focus=(focus and not is_mac())
             )
             maintext().clear_selection()
-        self.lift()
 
     @classmethod
     def mark_from_rowcol(cls, rowcol: IndexRowCol) -> str:
