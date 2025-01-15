@@ -616,6 +616,9 @@ def illosn_check(tag_type: str) -> None:
             _the_sn_checker.checker_dialog = checker_dialog
         the_checker = _the_sn_checker
 
+    # A move can happen via and undo/redo operation, in which case disable dialog
+    checker_dialog.add_undo_redo_callback(checker_dialog.reset)
+
     ToolTip(
         checker_dialog.text,
         "\n".join(
