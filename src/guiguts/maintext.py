@@ -935,12 +935,11 @@ class MainText(tk.Text):
         """Remove callback function from a list of functions to be called when
         <<Undo>> or <<Redo>> virtual events happen.
 
-        Should only be called if callback was added earlier.
+        OK if called for a dialog that didn't set up a callback.
 
         Args:
             key: Key to identify the caller, e.g. dialog class name
         """
-        assert key in self.undo_redo_callbacks
         if key in self.undo_redo_callbacks:
             del self.undo_redo_callbacks[key]
 
