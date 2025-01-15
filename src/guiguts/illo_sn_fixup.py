@@ -616,6 +616,13 @@ def illosn_check(tag_type: str) -> None:
             _the_sn_checker.checker_dialog = checker_dialog
         the_checker = _the_sn_checker
 
+    # A move can happen via and undo/redo operation, in which case call update method
+    checker_dialog.add_undo_redo_callback(
+        lambda: the_checker.update_after_move(
+            tag_type, the_checker.get_selected_illosn_index()
+        ),
+    )
+
     ToolTip(
         checker_dialog.text,
         "\n".join(

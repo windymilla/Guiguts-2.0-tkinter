@@ -460,6 +460,15 @@ class MainText(tk.Text):
             "<<Modified>>", lambda _event: self.modify_flag_changed_callback()
         )
 
+        # Set up callbacks when Undo/Redo is executed
+        self.undo_redo_callbacks: dict[str, Callable[[], None]] = {}
+        self.bind_event(
+            "<<Undo>>", lambda _event: self._call_undo_redo_callbacks(), add=True
+        )
+        self.bind_event(
+            "<<Redo>>", lambda _event: self._call_undo_redo_callbacks(), add=True
+        )
+
         self.bind_event("<<Cut>>", lambda _event: self.smart_cut(), force_break=False)
         self.bind_event("<<Copy>>", lambda _event: self.smart_copy(), force_break=False)
         self.bind_event(
@@ -910,6 +919,36 @@ class MainText(tk.Text):
             self.colnumbers.redraw()
             self.peer_colnumbers.redraw()
 
+    def add_undo_redo_callback(self, key: str, func: Callable[[], None]) -> None:
+        """Add callback function to a list of functions to be called when
+        <<Undo>> or <<Redo>> virtual events happen.
+
+        Calling routine has responsibility to remove callback when no longer needed.
+
+        Args:
+            key: Key to identify the caller, e.g. dialog class name
+            func: Callback function to be added to list.
+        """
+        self.undo_redo_callbacks[key] = func
+
+    def remove_undo_redo_callback(self, key: str) -> None:
+        """Remove callback function from a list of functions to be called when
+        <<Undo>> or <<Redo>> virtual events happen.
+
+        OK if called for a dialog that didn't set up a callback.
+
+        Args:
+            key: Key to identify the caller, e.g. dialog class name
+        """
+        if key in self.undo_redo_callbacks:
+            del self.undo_redo_callbacks[key]
+
+    def _call_undo_redo_callbacks(self) -> None:
+        """Causes all functions registered via `add_undo_redo_callback`
+        to be called after idle."""
+        for func in self.undo_redo_callbacks.values():
+            self.after_idle(func)
+
     def add_config_callback(self, func: Callable[[], None]) -> None:
         """Add callback function to a list of functions to be called when
         widget's configuration changes (e.g. width or height).
@@ -920,7 +959,7 @@ class MainText(tk.Text):
         self.config_callbacks.append(func)
 
     def _call_config_callbacks(self) -> None:
-        """Causes all functions registered via ``add_config_callback`` to be called."""
+        """Causes all functions registered via `add_config_callback` to be called."""
         for func in self.config_callbacks:
             func()
 
