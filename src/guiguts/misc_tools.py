@@ -529,7 +529,7 @@ class PageSeparatorDialog(ToplevelDialog):
         """
         match = maintext().find_match(
             PageSeparatorDialog.SEPARATOR_REGEX,
-            IndexRange(maintext().start(), maintext().end()),
+            maintext().start_to_end(),
             nocase=False,
             regexp=True,
             backwards=False,
@@ -718,7 +718,7 @@ def unmatched_curly_quotes() -> None:
         """
         nestable = preferences.get(PrefKey.UNMATCHED_NESTABLE)
         prefix = "Unmatched: "
-        search_range = IndexRange(maintext().start(), maintext().end())
+        search_range = maintext().start_to_end()
         # Find open & close single quotes
         while match := maintext().find_match("[‘’]", search_range, regexp=True):
             quote_type = maintext().get_match_text(match)
@@ -834,7 +834,7 @@ def unmatched_block_markup() -> None:
         Args:
             dialog: UnmatchedCheckerDialog to receive error messages.
         """
-        search_range = IndexRange(maintext().start(), maintext().end())
+        search_range = maintext().start_to_end()
         prefix = "Badly formed markup: "
         while match := maintext().find_match(
             f"(/{ALL_BLOCKS_REG}|{ALL_BLOCKS_REG}/)",
@@ -952,7 +952,7 @@ def unmatched_markup_check(
 
     checker_dialog.reset()
 
-    search_range = IndexRange(maintext().start(), maintext().end())
+    search_range = maintext().start_to_end()
     # Find each piece of markup that matches the regex
     while match := maintext().find_match(
         match_reg, search_range, regexp=True, nocase=True
@@ -1092,7 +1092,7 @@ def fraction_convert(conversion_type: FractionConvertType) -> None:
 
     sel_ranges = maintext().selected_ranges()
     if not sel_ranges:
-        sel_ranges = [IndexRange(maintext().start(), maintext().end())]
+        sel_ranges = [maintext().start_to_end()]
 
     last_match = ""
     frac_slash = "⁄"
@@ -1185,7 +1185,7 @@ def proofer_comment_check() -> None:
 
     matches = maintext().find_matches(
         "[**",
-        IndexRange(maintext().start(), maintext().end()),
+        maintext().start_to_end(),
         nocase=False,
         regexp=False,
     )
@@ -1230,7 +1230,7 @@ def asterisk_check() -> None:
     # Match single or multiple asterisks including when separated by spaces, e.g. thought break
     matches = maintext().find_matches(
         r"\*( *\*)*",
-        IndexRange(maintext().start(), maintext().end()),
+        maintext().start_to_end(),
         nocase=False,
         regexp=True,
     )
@@ -1335,7 +1335,7 @@ class TextMarkupConvertorDialog(ToplevelDialog):
         """
         found = False
         maintext().undo_block_begin()
-        search_range = IndexRange(maintext().start(), maintext().end())
+        search_range = maintext().start_to_end()
         # Find each piece of markup that matches the regex
         while match := maintext().find_match(
             regex, search_range, regexp=True, nocase=True
@@ -1355,7 +1355,7 @@ class TextMarkupConvertorDialog(ToplevelDialog):
         """Convert text marked up with <sc> to ALLCAPS."""
         found = False
         maintext().undo_block_begin()
-        search_range = IndexRange(maintext().start(), maintext().end())
+        search_range = maintext().start_to_end()
         # Find start of each smallcap markup
         while match := maintext().find_match(
             "<sc>", search_range, regexp=False, nocase=True

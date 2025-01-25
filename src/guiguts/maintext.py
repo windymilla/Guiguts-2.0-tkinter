@@ -1702,6 +1702,10 @@ class MainText(tk.Text):
         because text widget "end" is start of line below last char."""
         return self.rowcol(tk.END + "-1c")
 
+    def start_to_end(self) -> IndexRange:
+        """Return IndexRange from start to end of file."""
+        return IndexRange(self.start(), self.end())
+
     def move_to_selection_start(self, force_line: bool = False) -> str:
         """Set insert position to start of any selection text.
 
@@ -1964,8 +1968,8 @@ class MainText(tk.Text):
         self,
         search_string: str,
         text_range: IndexRange,
-        nocase: bool,
-        regexp: bool,
+        nocase: bool = False,
+        regexp: bool = False,
     ) -> list[FindMatch]:
         """Find all occurrences of string/regex in given range.
 
