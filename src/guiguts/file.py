@@ -726,7 +726,7 @@ class File:
 
     def remove_page_flags(self) -> None:
         """Remove page flags."""
-        search_range = IndexRange(maintext().start(), maintext().end())
+        search_range = maintext().start_to_end()
         while match := maintext().find_match(
             PAGE_FLAG_REGEX,
             search_range,
@@ -747,11 +747,10 @@ class File:
         Returns:
             True if page marker flags were present.
         """
-        search_range = IndexRange(maintext().start(), maintext().end())
         mark = "1.0"
         flag_matches = maintext().find_matches(
             PAGE_FLAG_REGEX,
-            search_range,
+            maintext().start_to_end(),
             nocase=False,
             regexp=True,
         )
@@ -792,7 +791,7 @@ class File:
         regex = r"^\.bn +(.+?)\.png"
         flag_matches = maintext().find_matches(
             regex,
-            IndexRange(maintext().start(), maintext().end()),
+            maintext().start_to_end(),
             nocase=False,
             regexp=True,
         )
@@ -898,7 +897,7 @@ class File:
     def rewrap_cleanup(self) -> None:
         """Clean up all rewrap markers."""
         match_regex = r"^/[#$*FILPXCR]|^[#$*FILPXCR]/"
-        search_range = IndexRange(maintext().start(), maintext().end())
+        search_range = maintext().start_to_end()
         maintext().undo_block_begin()
         while beg_match := maintext().find_match(
             match_regex, search_range, regexp=True, nocase=True

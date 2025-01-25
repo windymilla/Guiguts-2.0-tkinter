@@ -188,7 +188,7 @@ def html_convert_entities() -> None:
     maintext().replace_all("--", "—")
 
     # Find all < and > characters
-    search_range = IndexRange(maintext().start(), maintext().end())
+    search_range = maintext().start_to_end()
     while match := maintext().find_match("(<|>)", search_range, regexp=True):
         match_index = match.rowcol.index()
         match_text = maintext().get(match_index, f"{match_index} lineend")

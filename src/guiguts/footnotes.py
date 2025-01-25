@@ -626,6 +626,7 @@ class FootnoteChecker:
         fn_records_reversed = fn_records.copy()
         fn_records_reversed.reverse()
         an_records = self.get_an_records()
+        footnotes_header = "FOOTNOTES:"
         for fn_record in fn_records_reversed:
             fn_cur_start = self.checker_dialog.mark_from_rowcol(fn_record.start)
             fn_cur_end = self.checker_dialog.mark_from_rowcol(fn_record.end)
@@ -646,10 +647,7 @@ class FootnoteChecker:
             # If no LZ, create one and move footnote below it. Otherwise move footnote
             # below the LZ that was found
             search_range = IndexRange(an_cur_end, maintext().end())
-            match_regex = r"FOOTNOTES:"
-            if lz_match := maintext().find_match(
-                match_regex, search_range, regexp=True
-            ):
+            if lz_match := maintext().find_match(footnotes_header, search_range):
                 # There is a LZ below the anchor of the footnote.
                 lz_start = lz_match.rowcol.index()
                 below_lz = f"{lz_start} lineend"
@@ -692,6 +690,16 @@ class FootnoteChecker:
         # in this latter case and saves setting/testing flags to make it apply
         # only when moving FNs to chapter end LZs.
         self.remove_unused_lz_headers()
+        # Ensure correct number of lines after 'FOOTNOTES:' header. If 4 blank
+        # lines before, then add extra blank line after to make 2 blank lines.
+        matches = maintext().find_matches(footnotes_header, maintext().start_to_end())
+        for match in reversed(matches):
+            match_idx = match.rowcol.index()
+            if (
+                maintext().get(f"{match_idx}-4l", match_idx) == "\n" * 4
+                and maintext().get(f"{match_idx}+1l", f"{match_idx}+3l") != "\n" * 2
+            ):
+                maintext().insert(f"{match_idx}+1l", "\n")
         # Footnotes have been moved. Rebuild anchor and footnote record arrays
         # to reflect the changes.
         self.run_check()
@@ -704,7 +712,7 @@ class FootnoteChecker:
 
     def remove_unused_lz_headers(self) -> None:
         """Remove unused LZs and up to two preceding blank lines."""
-        search_range = IndexRange(maintext().start(), maintext().end())
+        search_range = maintext().start_to_end()
         match_regex = r"FOOTNOTES:"
         # Loop, finding all LZ headers; i.e. the string "FOOTNOTES:".
         while True:
@@ -1197,7 +1205,7 @@ class FootnoteChecker:
     def run_check(self) -> None:
         """Run the initial footnote check."""
         self.reset()
-        search_range = IndexRange(maintext().start(), maintext().end())
+        search_range = maintext().start_to_end()
         match_regex = r"\[ *footnote"
         # Loop, finding all footnotes (i.e. beginning with "[Footnote") allowing
         # some flexibility of spacing & case

@@ -203,7 +203,7 @@ class IlloSNChecker:
     def run_check(self, tag_type: str) -> None:
         """Run the initial Illustration or Sidenote records check."""
         self.reset()
-        search_range = IndexRange(maintext().start(), maintext().end())
+        search_range = maintext().start_to_end()
         match_regex = (
             r"\[ *illustration" if tag_type == "Illustration" else r"\[ *sidenote"
         )
