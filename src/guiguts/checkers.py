@@ -449,19 +449,15 @@ class CheckerDialog(ToplevelDialog):
         if entry_index is not None:
             self.select_entry_by_index(entry_index)
 
-    def tidy_up(self, event: tk.Event) -> None:
-        """Tidy up when the dialog is destroyed.
+    def on_destroy(self) -> None:
+        """Override method that tidies up when the dialog is destroyed.
 
-        Calls the reset method which may be overridden.
+        Needs to remove the undo_redo callback if there is one.
 
         Args:
             event: identifies the widget being destroyed.
         """
-        # Since this method is bound to the "<Destroy>" event on the dialog,
-        # it will also be called for all child widgets - ignore them.
-        if not issubclass(type(event.widget), ToplevelDialog):
-            return
-        super().tidy_up(event)
+        super().on_destroy()
         maintext().remove_undo_redo_callback(self.__class__.__name__)
 
     def new_section(self) -> None:

@@ -87,7 +87,10 @@ class ToplevelDialog(tk.Toplevel):
         self.wm_deiconify()
 
         self.tooltip_list: list[ToolTip] = []
-        self.bind("<Destroy>", self.tidy_up)
+        # Bind to top_frame being destroyed because if binding is to dialog,
+        # function will be called for every child of dialog due to their
+        # "top level" bind tag
+        self.top_frame.bind("<Destroy>", lambda _: self.on_destroy())
 
         grab_focus(self)
 
@@ -164,18 +167,11 @@ class ToplevelDialog(tk.Toplevel):
         uk = re.sub("[a-z]>?$", lambda m: m.group(0).upper(), key_event)
         self.bind(uk, lambda _: handler())
 
-    def tidy_up(self, event: tk.Event) -> None:
+    def on_destroy(self) -> None:
         """Tidy up when the dialog is destroyed.
 
-        Calls the reset method which may be overridden.
-
-        Args:
-            event: identifies the widget being destroyed.
+        Also calls the reset method.
         """
-        # Since this method is bound to the "<Destroy>" event on the dialog,
-        # it will also be called for all child widgets - ignore them.
-        if not issubclass(type(event.widget), ToplevelDialog):
-            return
         for tooltip in self.tooltip_list:
             tooltip.destroy()
         self.tooltip_list = []
