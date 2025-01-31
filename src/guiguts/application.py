@@ -40,6 +40,7 @@ from guiguts.misc_tools import (
     page_separator_fixup,
     PageSepAutoType,
     unmatched_dp_markup,
+    unmatched_html_markup,
     unmatched_brackets,
     unmatched_curly_quotes,
     unmatched_block_markup,
@@ -103,7 +104,7 @@ class Guiguts:
         root().tk.call("package", "require", "awdark")
         root().tk.call("package", "require", "awlight")
 
-        self.menu_file: Optional[Menu] = (
+        self.file_menu: Optional[Menu] = (
             None  # File menu is saved to allow deletion & re-creation
         )
         self.init_menus()
@@ -478,24 +479,24 @@ Fifth Floor, Boston, MA 02110-1301 USA."""
     def init_file_menu(self) -> None:
         """(Re-)create the File menu."""
         try:
-            self.menu_file.delete(0, "end")  # type:ignore[union-attr]
+            self.file_menu.delete(0, "end")  # type:ignore[union-attr]
         except AttributeError:
-            self.menu_file = Menu(menubar(), "~File")
-        assert self.menu_file is not None
-        self.menu_file.add_button("~Open...", self.open_file, "Cmd/Ctrl+O")
-        self.init_file_recent_menu(self.menu_file)
-        self.menu_file.add_button("~Save", self.file.save_file, "Cmd/Ctrl+S")
-        self.menu_file.add_button(
+            self.file_menu = Menu(menubar(), "~File")
+        assert self.file_menu is not None
+        self.file_menu.add_button("~Open...", self.open_file, "Cmd/Ctrl+O")
+        self.init_file_recent_menu(self.file_menu)
+        self.file_menu.add_button("~Save", self.file.save_file, "Cmd/Ctrl+S")
+        self.file_menu.add_button(
             "Save ~As...", self.file.save_as_file, "Cmd/Ctrl+Shift+S"
         )
-        self.menu_file.add_button("Sa~ve a Copy As...", self.file.save_copy_as_file)
-        self.menu_file.add_button(
+        self.file_menu.add_button("Sa~ve a Copy As...", self.file.save_copy_as_file)
+        self.file_menu.add_button(
             "~Close", self.close_command, "Cmd+W" if is_mac() else ""
         )
-        self.init_file_project_menu(self.menu_file)
+        self.init_file_project_menu(self.file_menu)
         if not is_mac():
-            self.menu_file.add_separator()
-            self.menu_file.add_button("E~xit", self.quit_program, "")
+            self.file_menu.add_separator()
+            self.file_menu.add_button("E~xit", self.quit_program, "")
 
     def init_file_recent_menu(self, parent: Menu) -> None:
         """Create the Recent Documents menu."""
@@ -508,51 +509,55 @@ Fifth Floor, Boston, MA 02110-1301 USA."""
 
     def init_file_project_menu(self, parent: Menu) -> None:
         """Create the File->Project menu."""
-        proj_menu = Menu(parent, "~Project")
-        proj_menu.add_button(
+        project_menu = Menu(parent, "~Project")
+        project_menu.add_button(
             "Add ~Good/Bad Words to Project Dictionary",
             self.file.add_good_and_bad_words,
         )
-        proj_menu.add_button(
+        project_menu.add_button(
             f"Set ~Scan Image {folder_dir_str()}...",
             self.file.choose_image_dir,
         )
-        proj_menu.add_button("Set ~Language(s)...", self.file.set_languages)
-        proj_menu.add_separator()
-        proj_menu.add_button("~Configure Page Labels...", self.show_page_details_dialog)
-        proj_menu.add_separator()
-        proj_menu.add_button("~Add Page Marker Flags", self.file.add_page_flags)
-        proj_menu.add_button("~Remove Page Marker Flags", self.file.remove_page_flags)
+        project_menu.add_button("Set ~Language(s)...", self.file.set_languages)
+        project_menu.add_separator()
+        project_menu.add_button(
+            "~Configure Page Labels...", self.show_page_details_dialog
+        )
+        project_menu.add_separator()
+        project_menu.add_button("~Add Page Marker Flags", self.file.add_page_flags)
+        project_menu.add_button(
+            "~Remove Page Marker Flags", self.file.remove_page_flags
+        )
 
     def init_edit_menu(self) -> None:
         """Create the Edit menu."""
-        menu_edit = Menu(menubar(), "~Edit")
-        menu_edit.add_button("~Undo", "<<Undo>>", "Cmd/Ctrl+Z")
-        menu_edit.add_button(
+        edit_menu = Menu(menubar(), "~Edit")
+        edit_menu.add_button("~Undo", "<<Undo>>", "Cmd/Ctrl+Z")
+        edit_menu.add_button(
             "~Redo", "<<Redo>>", "Cmd+Shift+Z" if is_mac() else "Ctrl+Y"
         )
-        menu_edit.add_separator()
-        menu_edit.add_cut_copy_paste()
-        menu_edit.add_button(
+        edit_menu.add_separator()
+        edit_menu.add_cut_copy_paste()
+        edit_menu.add_button(
             "R~estore Selection",
             maintext().restore_selection_ranges,
         )
-        menu_edit.add_separator()
-        menu_edit.add_button(
+        edit_menu.add_separator()
+        edit_menu.add_button(
             "Co~lumn Cut", maintext().columnize_cut, "Cmd/Ctrl+Shift+X"
         )
-        menu_edit.add_button(
+        edit_menu.add_button(
             "C~olumn Copy", maintext().columnize_copy, "Cmd/Ctrl+Shift+C"
         )
-        menu_edit.add_button(
+        edit_menu.add_button(
             "Colu~mn Paste", maintext().columnize_paste, "Cmd/Ctrl+Shift+V"
         )
-        menu_edit.add_button(
+        edit_menu.add_button(
             "To~ggle Column/Regular Selection",
             maintext().toggle_selection_type,
         )
-        menu_edit.add_separator()
-        case_menu = Menu(menu_edit, "C~hange Case")
+        edit_menu.add_separator()
+        case_menu = Menu(edit_menu, "C~hange Case")
         case_menu.add_button(
             "~lowercase selection",
             lambda: maintext().transform_selection(str.lower),
@@ -576,64 +581,64 @@ Fifth Floor, Boston, MA 02110-1301 USA."""
             "",
         )
         if not is_mac():
-            menu_edit.add_separator()
-            menu_edit.add_button("Pre~ferences...", PreferencesDialog.show_dialog)
+            edit_menu.add_separator()
+            edit_menu.add_button("Pre~ferences...", PreferencesDialog.show_dialog)
 
     def init_search_menu(self) -> None:
         """Create the Search menu."""
-        menu_search = Menu(menubar(), "~Search")
-        menu_search.add_button(
+        search_menu = Menu(menubar(), "~Search")
+        search_menu.add_button(
             "~Search & Replace...",
             show_search_dialog,
             "Cmd/Ctrl+F",
         )
-        menu_search.add_button(
+        search_menu.add_button(
             "Find Ne~xt",
             find_next,
             "Cmd+G" if is_mac() else "F3",
         )
-        menu_search.add_button(
+        search_menu.add_button(
             "Find Pre~vious",
             lambda: find_next(backwards=True),
             "Cmd+Shift+G" if is_mac() else "Shift+F3",
         )
-        menu_search.add_separator()
-        self.init_search_goto_menu(menu_search)
-        menu_search.add_separator()
-        menu_search.add_button(
+        search_menu.add_separator()
+        self.init_search_goto_menu(search_menu)
+        search_menu.add_separator()
+        search_menu.add_button(
             "Find Proofer ~Comments",
             proofer_comment_check,
         )
-        menu_search.add_button(
+        search_menu.add_button(
             "Find ~Asterisks w/o Slash",
             asterisk_check,
         )
-        menu_search.add_separator()
-        menu_search.add_button(
+        search_menu.add_separator()
+        search_menu.add_button(
             "Highlight Single ~Quotes in Selection",
             maintext().highlight_single_quotes,
         )
-        menu_search.add_button(
+        search_menu.add_button(
             "Highlight ~Double Quotes in Selection",
             maintext().highlight_double_quotes,
         )
-        menu_search.add_button(
+        search_menu.add_button(
             "~Remove Highlights",
             maintext().remove_highlights,
         )
-        menu_search.add_separator()
-        menu_search.add_checkbox(
+        search_menu.add_separator()
+        search_menu.add_checkbox(
             "Highlight S~urrounding Quotes & Brackets",
             root().highlight_quotbrac,
         )
-        menu_search.add_checkbox(
+        search_menu.add_checkbox(
             "Highlight Al~ignment Column",
             maintext().aligncol_active,
             lambda: maintext().highlight_aligncol_callback(True),
             lambda: maintext().highlight_aligncol_callback(False),
         )
-        menu_search.add_separator()
-        self.init_bookmark_menu(menu_search)
+        search_menu.add_separator()
+        self.init_bookmark_menu(search_menu)
 
     def init_search_goto_menu(self, parent: Menu) -> None:
         """Create the Search->Goto menu."""
@@ -700,11 +705,11 @@ Fifth Floor, Boston, MA 02110-1301 USA."""
 
     def init_tools_menu(self) -> None:
         """Create the Tools menu."""
-        menu_tools = Menu(menubar(), "~Tools")
-        menu_tools.add_button("Basic Fi~xup...", basic_fixup_check)
-        menu_tools.add_button("~Word Frequency...", word_frequency)
-        menu_tools.add_button("~Bookloupe...", bookloupe_check)
-        menu_tools.add_button(
+        tools_menu = Menu(menubar(), "~Tools")
+        tools_menu.add_button("Basic Fi~xup...", basic_fixup_check)
+        tools_menu.add_button("~Word Frequency...", word_frequency)
+        tools_menu.add_button("~Bookloupe...", bookloupe_check)
+        tools_menu.add_button(
             "~Spelling...",
             lambda: spell_check(
                 self.file.project_dict,
@@ -712,33 +717,33 @@ Fifth Floor, Boston, MA 02110-1301 USA."""
                 self.file.add_good_word_to_global_dictionary,
             ),
         )
-        menu_tools.add_button("PP~txt...", lambda: pptxt(self.file.project_dict))
-        menu_tools.add_button("~Jeebies...", jeebies_check)
-        menu_tools.add_button("Stealth S~cannos...", stealth_scannos)
-        menu_tools.add_button(
+        tools_menu.add_button("PP~txt...", lambda: pptxt(self.file.project_dict))
+        tools_menu.add_button("~Jeebies...", jeebies_check)
+        tools_menu.add_button("Stealth S~cannos...", stealth_scannos)
+        tools_menu.add_button(
             "Word ~Distance Check...", lambda: levenshtein_check(self.file.project_dict)
         )
-        menu_tools.add_separator()
-        menu_tools.add_button("~Page Separator Fixup...", page_separator_fixup)
-        menu_tools.add_button("~Footnote Fixup...", footnote_check)
-        menu_tools.add_button("Side~note Fixup...", lambda: illosn_check("Sidenote"))
-        menu_tools.add_button(
+        tools_menu.add_separator()
+        tools_menu.add_button("~Page Separator Fixup...", page_separator_fixup)
+        tools_menu.add_button("~Footnote Fixup...", footnote_check)
+        tools_menu.add_button("Side~note Fixup...", lambda: illosn_check("Sidenote"))
+        tools_menu.add_button(
             "~Illustration Fixup...", lambda: illosn_check("Illustration")
         )
-        menu_tools.add_separator()
-        menu_tools.add_button("~Rewrap All", self.file.rewrap_all)
-        menu_tools.add_button("R~ewrap Selection", self.file.rewrap_selection)
-        menu_tools.add_button("C~lean Up Rewrap Markers", self.file.rewrap_cleanup)
-        menu_tools.add_separator()
-        menu_tools.add_button("Convert to Curly ~Quotes", convert_to_curly_quotes)
-        menu_tools.add_button("Check Curly Q~uotes", check_curly_quotes)
-        unmatched_menu = Menu(menu_tools, "Un~matched")
+        tools_menu.add_separator()
+        tools_menu.add_button("~Rewrap All", self.file.rewrap_all)
+        tools_menu.add_button("R~ewrap Selection", self.file.rewrap_selection)
+        tools_menu.add_button("C~lean Up Rewrap Markers", self.file.rewrap_cleanup)
+        tools_menu.add_separator()
+        tools_menu.add_button("Convert to Curly ~Quotes", convert_to_curly_quotes)
+        tools_menu.add_button("Check Curly Q~uotes", check_curly_quotes)
+        unmatched_menu = Menu(tools_menu, "Un~matched")
         unmatched_menu.add_button("Bloc~k Markup...", unmatched_block_markup)
         unmatched_menu.add_button("~DP Markup...", unmatched_dp_markup)
         unmatched_menu.add_button("~Brackets...", unmatched_brackets)
         unmatched_menu.add_button("Curly ~Quotes...", unmatched_curly_quotes)
 
-        fraction_menu = Menu(menu_tools, "~Convert Fractions")
+        fraction_menu = Menu(tools_menu, "~Convert Fractions")
         fraction_menu.add_button(
             "~Unicode Fractions Only",
             lambda: fraction_convert(FractionConvertType.UNICODE),
@@ -751,7 +756,7 @@ Fifth Floor, Boston, MA 02110-1301 USA."""
             "All to ~Super/Subscript",
             lambda: fraction_convert(FractionConvertType.SUPSUB),
         )
-        unicode_menu = Menu(menu_tools, "~Unicode")
+        unicode_menu = Menu(tools_menu, "~Unicode")
         unicode_menu.add_button(
             "Unicode ~Search/Entry", UnicodeSearchDialog.show_dialog
         )
@@ -768,45 +773,46 @@ Fifth Floor, Boston, MA 02110-1301 USA."""
 
     def init_text_menu(self) -> None:
         """Create the Text menu."""
-        menu_tools = Menu(menubar(), "Te~xt")
-        menu_tools.add_button(
+        text_menu = Menu(menubar(), "Te~xt")
+        text_menu.add_button(
             "Convert ~Markup...", TextMarkupConvertorDialog.show_dialog
         )
 
     def init_html_menu(self) -> None:
         """Create the HTML menu."""
-        menu_tools = Menu(menubar(), "HT~ML")
-        menu_tools.add_button("HTML ~Generator...", HTMLGeneratorDialog.show_dialog)
-        menu_tools.add_button(
+        html_menu = Menu(menubar(), "HT~ML")
+        html_menu.add_button("HTML ~Generator...", HTMLGeneratorDialog.show_dialog)
+        html_menu.add_button(
             "Auto-~Illustrations...", lambda: HTMLImageDialog.show_dialog(destroy=True)
         )
+        html_menu.add_button("~Unmatched HTML Tags...", unmatched_html_markup)
 
     def init_view_menu(self) -> None:
         """Create the View menu."""
-        menu_view = Menu(menubar(), "~View")
-        menu_view.add_checkbox(
+        view_menu = Menu(menubar(), "~View")
+        view_menu.add_checkbox(
             "Split ~Text Window",
             root().split_text_window,
             lambda: maintext().show_peer(),
             lambda: maintext().hide_peer(),
         )
-        menu_view.add_checkbox(
+        view_menu.add_checkbox(
             "~Dock Image",
             root().image_window_docked_state,
             self.mainwindow.dock_image,
             self.mainwindow.float_image,
         )
-        menu_view.add_checkbox(
+        view_menu.add_checkbox(
             "~Auto Image",
             root().auto_image_state,
         )
-        menu_view.add_button("~See Image", self.show_image)
-        menu_view.add_button("~Hide Image", self.hide_image)
-        menu_view.add_separator()
-        menu_view.add_button("~Message Log", self.mainwindow.messagelog.show)
-        menu_view.add_separator()
+        view_menu.add_button("~See Image", self.show_image)
+        view_menu.add_button("~Hide Image", self.hide_image)
+        view_menu.add_separator()
+        view_menu.add_button("~Message Log", self.mainwindow.messagelog.show)
+        view_menu.add_separator()
         if not is_mac():  # Full Screen behaves oddly on Macs
-            menu_view.add_checkbox(
+            view_menu.add_checkbox(
                 "~Full Screen",
                 root().full_screen_var,
                 lambda: root().wm_attributes("-fullscreen", True),
@@ -815,13 +821,13 @@ Fifth Floor, Boston, MA 02110-1301 USA."""
 
     def init_help_menu(self) -> None:
         """Create the Help menu."""
-        menu_help = Menu(menubar(), "~Help")
-        menu_help.add_button(
+        help_menu = Menu(menubar(), "~Help")
+        help_menu.add_button(
             "Guiguts ~Manual", self.show_help_manual, "F1", force_main_only=True
         )
-        menu_help.add_button("About ~Guiguts", self.help_about)
-        menu_help.add_button("~Regex Quick Reference", self.show_help_regex)
-        menu_help.add_button(
+        help_menu.add_button("About ~Guiguts", self.help_about)
+        help_menu.add_button("~Regex Quick Reference", self.show_help_regex)
+        help_menu.add_button(
             "List of ~Compose Sequences", ComposeHelpDialog.show_dialog
         )
 

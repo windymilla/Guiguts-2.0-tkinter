@@ -37,7 +37,8 @@ BLOCK_TYPES = "[$*XxFf]"
 POEM_TYPES = "[Pp]"
 ALL_BLOCKS_REG = f"[{re.escape('#$*FILPXCR')}]"
 QUOTE_APOS_REG = "[[:alpha:]]’[[:alpha:]]"
-NEVER_MATCH_REG = r"(?!)"
+NEVER_MATCH_REG = "NEVER"
+ALWAYS_MATCH_REG = "ALWAYS"
 DEFAULT_SCANNOS_DIR = importlib.resources.files(scannos)
 DEFAULT_REGEX_SCANNOS = "regex.json"
 DEFAULT_STEALTH_SCANNOS = "en-common.json"
@@ -812,6 +813,58 @@ def unmatched_dp_markup() -> None:
     )
 
 
+def unmatched_html_markup() -> None:
+    """Check for unmatched HTML markup."""
+
+    open_regex = "<([[:alnum:]]+)( [^>\n]+)?>"
+    close_regex = "</([[:alnum:]]+)>"
+
+    def get_tag_type_regex(markup_in: str) -> str:
+        """Get the type of the given tag, e.g. "<div class='abc'>" gives "div".
+
+        Escaped so suitable for use in a regex.
+        """
+        return re.escape(re.sub(open_regex, r"\1", markup_in.replace("/", "")))
+
+    def matched_pair_html_markup(markup_in: str) -> tuple[str, bool]:
+        """Get regex that matches open and close HTML markup.
+
+        Args:
+            markup_in: Markup string - must be "<i>", "</b>", "<div class='...'>", etc.
+
+        Returns:
+            Tuple with regex, True if markup_in was close markup.
+        """
+        mtype = get_tag_type_regex(markup_in)
+        return f"(<{mtype}( [^>\n]+)?>|</{mtype}>)", (markup_in[1] == "/")
+
+    def sort_key_html_markup(
+        entry: CheckerEntry,
+    ) -> tuple[str, bool, int, int]:
+        """Sort key function to sort bad HTML tags.
+
+        Order is type of markup (e.g. b, div, span), open/close, row, col.
+        """
+        assert entry.text_range is not None
+        text = entry.text[entry.hilite_start : entry.hilite_end]
+        mtype = get_tag_type_regex(text)
+        return (
+            mtype,
+            "/" in text,
+            entry.text_range.start.row,
+            entry.text_range.start.col,
+        )
+
+    unmatched_markup_check(
+        "Unmatched HTML tags",
+        rerun_command=unmatched_html_markup,
+        match_reg=f"{open_regex}|{close_regex}",
+        match_pair_func=matched_pair_html_markup,
+        nest_reg=ALWAYS_MATCH_REG,
+        sort_key_alpha=sort_key_html_markup,
+    )
+
+
 def unmatched_block_markup() -> None:
     """Check for unmatched block markup."""
 
@@ -970,6 +1023,10 @@ def unmatched_markup_check(
         # Is this markup permitted to nest?
         if nest_reg is None:
             nestable = preferences.get(PrefKey.UNMATCHED_NESTABLE)
+        elif nest_reg == NEVER_MATCH_REG:
+            nestable = False
+        elif nest_reg == ALWAYS_MATCH_REG:
+            nestable = True
         else:
             nestable = bool(re.fullmatch(nest_reg, match_str, flags=re.IGNORECASE))
         prefix = "Unmatched: "
