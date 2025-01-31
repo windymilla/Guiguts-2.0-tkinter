@@ -9,7 +9,7 @@ import logging
 import regex as re
 import roman  # type: ignore[import-untyped]
 
-from guiguts.checkers import CheckerDialog
+from guiguts.checkers import CheckerDialog, CheckerViewOptionsDialog, CheckerFilterText
 from guiguts.maintext import maintext
 from guiguts.misc_tools import tool_save
 from guiguts.utilities import IndexRange, DiacriticRemover
@@ -100,6 +100,61 @@ _okwords = [
     "outbid", "outbids", "frostbite", "frostbitten", "s^t",
 ]
 # fmt: on
+checker_filters = [
+    CheckerFilterText("Asterisk", "Asterisk.*"),
+    CheckerFilterText("Begins with punctuation", "Begins with punctuation.*"),
+    CheckerFilterText("Broken em-dash", "Broken em-dash.*"),
+    CheckerFilterText('Capital "S"', 'Capital "S".*'),
+    CheckerFilterText("Caret character", "Caret character.*"),
+    CheckerFilterText("Double punctuation", "Double punctuation.*"),
+    CheckerFilterText("Endquote missing punctuation", "Endquote missing punctuation.*"),
+    CheckerFilterText("Extra period", "Extra period.*"),
+    CheckerFilterText("Forward slash", "Forward slash.*"),
+    CheckerFilterText("HTML Tag", "HTML Tag.*"),
+    CheckerFilterText("HTML symbol", "HTML symbol.*"),
+    CheckerFilterText("Hyphen at end of line", "Hyphen at end of line.*"),
+    CheckerFilterText("Long line", "Long line .*"),
+    CheckerFilterText("Mismatched curly brackets", "Mismatched curly brackets.*"),
+    CheckerFilterText("Mismatched double quotes", "Mismatched double quotes.*"),
+    CheckerFilterText("Mismatched round brackets", "Mismatched round brackets.*"),
+    CheckerFilterText("Mismatched single quotes", "Mismatched single quotes.*"),
+    CheckerFilterText("Mismatched square brackets", "Mismatched square brackets.*"),
+    CheckerFilterText("Mismatched underscores", "Mismatched underscores.*"),
+    CheckerFilterText("Missing space", "Missing space.*"),
+    CheckerFilterText("No punctuation at para end", "No punctuation at para end.*"),
+    CheckerFilterText(
+        "Paragraph starts with lower-case", "Paragraph starts with lower-case.*"
+    ),
+    CheckerFilterText("Query digit in", "Query digit in.*"),
+    CheckerFilterText("Query had/bad error", "Query had/bad error.*"),
+    CheckerFilterText("Query he/be error", "Query he/be error.*"),
+    CheckerFilterText("Query hut/but error", "Query hut/but error.*"),
+    CheckerFilterText("Query I=exclamation mark", "Query I=exclamation mark.*"),
+    CheckerFilterText(
+        "Query missing paragraph break", "Query missing paragraph break.*"
+    ),
+    CheckerFilterText("Query punctuation after", "Query punctuation after .*"),
+    CheckerFilterText("Query single character line", "Query single character line.*"),
+    CheckerFilterText("Query standalone 0", "Query standalone 0.*"),
+    CheckerFilterText("Query standalone 1", "Query standalone 1.*"),
+    CheckerFilterText("Query word", "Query word .*"),
+    CheckerFilterText("Short line", "Short line .*"),
+    CheckerFilterText("Spaced dash", "Spaced dash.*"),
+    CheckerFilterText("Spaced em-dash", "Spaced em-dash.*"),
+    CheckerFilterText("Spaced punctuation", "Spaced punctuation.*"),
+    CheckerFilterText("Tab character", "Tab character.*"),
+    CheckerFilterText("Tilde character", "Tilde character.*"),
+    CheckerFilterText("Unspaced bracket", "Unspaced bracket.*"),
+    CheckerFilterText("Unspaced quotes", "Unspaced quotes.*"),
+    CheckerFilterText("Wrongspaced quotes", "Wrongspaced quotes.*"),
+    CheckerFilterText("Wrongspaced singlequotes", "Wrongspaced singlequotes.*"),
+]
+
+
+class BookloupeCheckerViewOptionsDialog(CheckerViewOptionsDialog):
+    """Minimal class to identify dialog type."""
+
+    manual_page = "Tools_Menu#Bookloupe_View_Options"
 
 
 class BookloupeCheckerDialog(CheckerDialog):
@@ -130,6 +185,8 @@ class BookloupeChecker:
         self.dialog = BookloupeCheckerDialog.show_dialog(
             "Bookloupe Results",
             rerun_command=bookloupe_check,
+            view_options_dialog_class=BookloupeCheckerViewOptionsDialog,
+            view_options_filters=checker_filters,
         )
         ToolTip(
             self.dialog.text,

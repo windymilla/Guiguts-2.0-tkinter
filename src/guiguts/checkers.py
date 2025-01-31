@@ -104,12 +104,108 @@ class CheckerSortType(StrEnum):
     ROWCOL = auto()
 
 
+class CheckerViewOptionsDialog(ToplevelDialog):
+    """Dialog to allow user to show/hide checker message types."""
+
+    def __init__(
+        self,
+        title: str,
+        checker_dialog: "CheckerDialog",
+    ) -> None:
+        """Create View Options dialog.
+
+        Args:
+            title: Title for dialog.
+            checker_dialog: The checker dialog that this dialog belongs to.
+        """
+        super().__init__(title, resize_x=False, resize_y=False)
+        self.checker_dialog = checker_dialog
+
+        self.flags: list[tk.BooleanVar] = []
+        check_frame = ttk.Frame(self.top_frame)
+        check_frame.grid(row=0, column=0)
+        max_height = 15  # Don't want too many checkbuttons per column
+        for row, option_filter in enumerate(self.checker_dialog.view_options_filters):
+
+            check_var = tk.BooleanVar(value=option_filter.on)
+
+            def btn_clicked(row: int = row, var: tk.BooleanVar = check_var) -> None:
+                """Called when filter setting is changed."""
+                self.checker_dialog.view_options_filters[row].on = var.get()
+                self.checker_dialog.display_entries()
+
+            ttk.Checkbutton(
+                check_frame,
+                text=option_filter.label,
+                command=btn_clicked,
+                variable=check_var,
+            ).grid(row=row % max_height, column=row // max_height, sticky="NSW")
+            self.flags.append(check_var)
+
+        btn_frame = ttk.Frame(self.top_frame)
+        btn_frame.grid(row=1, column=0, pady=(5, 0))
+        ttk.Button(btn_frame, text="Hide All", command=lambda: self.set_all(True)).grid(
+            row=0, column=0, padx=5
+        )
+        ttk.Button(btn_frame, text="See All", command=lambda: self.set_all(False)).grid(
+            row=0, column=1, padx=5
+        )
+
+    def set_all(self, value: bool) -> None:
+        """Set all the checkbuttons to the given value."""
+        for flag in self.flags:
+            flag.set(value)
+        for row, _ in enumerate(self.checker_dialog.view_options_filters):
+            self.checker_dialog.view_options_filters[row].on = value
+        self.checker_dialog.display_entries()
+
+    def on_destroy(self) -> None:
+        if self.checker_dialog.winfo_exists():
+            self.checker_dialog.lift()
+        super().on_destroy()
+
+
+class CheckerFilter:
+    """Class to store a single filter used for View Options."""
+
+    def __init__(self, label: str, regex: str, on: bool = False) -> None:
+        """Initialize checker filter class.
+
+        Args:
+            on: Whether filter is turned on.
+        """
+        self.label = label
+        self.regex = re.compile(regex)
+        self.on = on
+
+    def matches(self, entry: CheckerEntry) -> bool:
+        """Return whether filter matches given entry."""
+        raise NotImplementedError()
+
+
+class CheckerFilterText(CheckerFilter):
+    """Filter based on checker entry text."""
+
+    def matches(self, entry: CheckerEntry) -> bool:
+        """Return whether filter matches given entry."""
+        return bool(self.regex.fullmatch(entry.text))
+
+
+class CheckerFilterErrorPrefix(CheckerFilter):
+    """Filter based on checker entry error prefix."""
+
+    def matches(self, entry: CheckerEntry) -> bool:
+        """Return whether filter matches given entry."""
+        return bool(self.regex.fullmatch(entry.error_prefix))
+
+
 class CheckerDialog(ToplevelDialog):
     """Dialog to show results of running a check.
 
     Attributes:
         text: Text widget to contain results.
         header_frame: Frame at top of widget containing configuration buttons, fields, etc.
+                      Row 0 contains common controls, rows 1+ available for specific dialogs.
         count_label: Label showing how many linked entries there are in the dialog
     """
 
@@ -129,6 +225,8 @@ class CheckerDialog(ToplevelDialog):
         sort_key_alpha: Optional[Callable[[CheckerEntry], tuple]] = None,
         show_suspects_only: bool = False,
         clear_on_undo_redo: bool = False,
+        view_options_dialog_class: Optional[type[CheckerViewOptionsDialog]] = None,
+        view_options_filters: Optional[list[CheckerFilter]] = None,
         **kwargs: Any,
     ) -> None:
         """Initialize the dialog.
@@ -140,6 +238,9 @@ class CheckerDialog(ToplevelDialog):
             sort_key_rowcol: Function to sort by row & column.
             sort_key_alpha: Function to sort by alpha/type.
             show_suspects_only: True to show "Suspects only" checkbutton.
+            clear_on_undo_redo: True to cause dialog to be cleared if Undo/Redo are used.
+            view_options_dialog_class: Class to use for a View Options dialog.
+            view_options_filters: List of filters to control which messages are shown.
         """
         super().__init__(title, **kwargs)
         self.top_frame.rowconfigure(0, weight=0)
@@ -147,12 +248,31 @@ class CheckerDialog(ToplevelDialog):
         self.header_frame.grid(row=0, column=0, sticky="NSEW")
 
         self.header_frame.columnconfigure(0, weight=1)
-        left_frame = ttk.Frame(self.header_frame)
-        left_frame.grid(row=0, column=0, sticky="NSEW")
-        left_frame.columnconfigure(0, weight=0)
-        left_frame.columnconfigure(1, weight=1)
-        self.count_label = ttk.Label(left_frame, text="No results")
+        options_frame = ttk.Frame(self.header_frame)
+        options_frame.grid(row=0, column=0, sticky="NSEW")
+        options_frame.columnconfigure(0, weight=0)
+        options_frame.columnconfigure(1, weight=1)
+        self.count_label = ttk.Label(options_frame, text="No results")
         self.count_label.grid(row=0, column=0, sticky="NSW")
+
+        def copy_errors() -> None:
+            """Copy text messages to clipboard."""
+            self.clipboard_clear()
+            self.clipboard_append(self.text.get("1.0", tk.END))
+
+        copy_button = ttk.Button(
+            options_frame, text="Copy Results", command=copy_errors
+        )
+        copy_button.grid(row=0, column=1, sticky="NS")
+
+        def rerunner() -> None:
+            self.selection_on_clear[self.__class__.__name__] = None
+            self.rerun_command()
+
+        self.rerun_command = rerun_command
+        self.rerun_button = ttk.Button(options_frame, text="Re-run", command=rerunner)
+        self.rerun_button.grid(row=0, column=2, sticky="NSE", padx=(10, 0))
+
         self.suspects_only_btn: Optional[ttk.Checkbutton]
         if show_suspects_only:
             # Can't use a PersistentBoolean directly, since we save this value for each checker dialog
@@ -167,28 +287,23 @@ class CheckerDialog(ToplevelDialog):
                 self.display_entries()
 
             self.suspects_only_btn = ttk.Checkbutton(
-                left_frame,
+                options_frame,
                 text="Suspects Only",
                 variable=suspects_only_var,
                 command=suspects_only_changed,
                 takefocus=False,
             )
-            self.suspects_only_btn.grid(row=0, column=1, sticky="NSW", padx=(10, 0))
+            self.suspects_only_btn.grid(row=1, column=0, sticky="NSW")
         else:
             self.suspects_only_btn = None
 
-        def copy_errors() -> None:
-            """Copy text messages to clipboard."""
-            self.clipboard_clear()
-            self.clipboard_append(self.text.get("1.0", tk.END))
-
-        copy_button = ttk.Button(left_frame, text="Copy Results", command=copy_errors)
-        copy_button.grid(row=0, column=2, sticky="NSE", padx=(0, 20))
-
+        sort_frame = ttk.Frame(options_frame)
+        sort_frame.grid(row=1, column=1, sticky="NS", pady=5)
+        sort_frame.rowconfigure(0, weight=1)
         ttk.Label(
-            left_frame,
+            sort_frame,
             text="Sort:",
-        ).grid(row=0, column=3, sticky="NSE", padx=5)
+        ).grid(row=0, column=0, sticky="NS", padx=5)
 
         # Can't use a PersistentString directly, since we save this value for each checker dialog
         sort_type = tk.StringVar(
@@ -202,29 +317,38 @@ class CheckerDialog(ToplevelDialog):
             self.display_entries()
 
         ttk.Radiobutton(
-            left_frame,
+            sort_frame,
             text="Line & Col",
             command=sort_type_changed,
             variable=sort_type,
             value=CheckerSortType.ROWCOL,
             takefocus=False,
-        ).grid(row=0, column=4, sticky="NSE", padx=2)
+        ).grid(row=0, column=1, sticky="NS", padx=2)
         ttk.Radiobutton(
-            left_frame,
+            sort_frame,
             text="Alpha/Type",
             command=sort_type_changed,
             variable=sort_type,
             value=CheckerSortType.ALPHABETIC,
             takefocus=False,
-        ).grid(row=0, column=5, sticky="NSE", padx=2)
+        ).grid(row=0, column=2, sticky="NS", padx=2)
 
-        def rerunner() -> None:
-            self.selection_on_clear[self.__class__.__name__] = None
-            self.rerun_command()
+        self.view_options_dialog: Optional[CheckerViewOptionsDialog] = None
 
-        self.rerun_command = rerun_command
-        self.rerun_button = ttk.Button(left_frame, text="Re-run", command=rerunner)
-        self.rerun_button.grid(row=0, column=6, sticky="NSE", padx=(20, 0))
+        def show_view_options() -> None:
+            """Show the view options dialog."""
+            assert view_options_dialog_class is not None
+            self.view_options_dialog = view_options_dialog_class.show_dialog(
+                title + " - View Options", checker_dialog=self
+            )
+
+        if view_options_dialog_class is not None:
+            ttk.Button(
+                options_frame, text="View Options", command=show_view_options
+            ).grid(row=1, column=2, sticky="NSE", pady=5)
+        if view_options_filters is None:
+            view_options_filters = []
+        self.view_options_filters = view_options_filters
 
         self.top_frame.rowconfigure(1, weight=1)
         self.text = ScrolledReadOnlyText(
@@ -334,14 +458,14 @@ class CheckerDialog(ToplevelDialog):
     def show_dialog(
         cls: type[TlDlg],
         title: Optional[str] = None,
-        destroy: bool = True,
+        destroy: bool = False,
         **kwargs: Any,
     ) -> TlDlg:
         """Show the instance of this dialog class, or create it if it doesn't exist.
 
         Args:
             title: Dialog title.
-            destroy: True (default) if dialog should be destroyed & re-created, rather than re-used
+            destroy: Set to True if dialog should be destroyed & re-created, rather than re-used
             args: Optional args to pass to dialog constructor.
             kwargs: Optional kwargs to pass to dialog constructor.
         """
@@ -453,9 +577,16 @@ class CheckerDialog(ToplevelDialog):
         """Override method that tidies up when the dialog is destroyed.
 
         Needs to remove the undo_redo callback if there is one.
+        Also the View Options dialog if it is popped.
         """
         super().on_destroy()
         maintext().remove_undo_redo_callback(self.__class__.__name__)
+        if (
+            self.view_options_dialog is not None
+            and self.view_options_dialog.winfo_exists()
+        ):
+            self.view_options_dialog.destroy()
+            self.view_options_dialog = None
 
     def new_section(self) -> None:
         """Start a new section in the dialog.
@@ -575,7 +706,7 @@ class CheckerDialog(ToplevelDialog):
         maxrow = 0
         maxcol = 0
         for entry in self.entries:
-            if self.skip_suspect_entry(entry):
+            if self.skip_entry(entry):
                 continue
             if entry.text_range is not None:
                 maxrow = max(maxrow, entry.text_range.start.row)
@@ -584,7 +715,7 @@ class CheckerDialog(ToplevelDialog):
         maxcollen = len(str(maxcol)) + 2  # Always colon & at least 1 space after col
 
         for entry in self.entries:
-            if self.skip_suspect_entry(entry):
+            if self.skip_entry(entry):
                 continue
             rowcol_str = ""
             if entry.severity >= CheckerEntrySeverity.INFO:
@@ -636,14 +767,14 @@ class CheckerDialog(ToplevelDialog):
                     if (
                         entry.text == self.selected_text
                         and entry.text_range == self.selected_text_range
-                        and not self.skip_suspect_entry(entry)
+                        and not self.skip_entry(entry)
                     ):
                         self.select_entry_by_index(index)
                         selection_made = True
                         break
             if not selection_made:
                 for index, entry in enumerate(self.entries):
-                    if self.skip_suspect_entry(entry):
+                    if self.skip_entry(entry):
                         continue
                     if entry.text_range:
                         self.select_entry_by_index(index)
@@ -660,17 +791,34 @@ class CheckerDialog(ToplevelDialog):
             PrefKey.CHECKERDIALOG_SUSPECTS_ONLY_DICT
         )
 
-    def skip_suspect_entry(self, entry: CheckerEntry) -> bool:
-        """Return whether to skip an entry when showing Suspects Only.
+    def skip_entry(self, entry: CheckerEntry) -> bool:
+        """Return whether to skip an entry either due to Suspects Only,
+        or due to View Options.
 
         Args:
             entry: Entry to be checked.
 
-        Returns: True if showing Suspects Only, but the entry isn't a suspect.
+        Returns: True if showing Suspects Only but the entry isn't a suspect,
+                 or if entry is hidden by View Options settings.
         """
         return (
-            self.showing_suspects_only() and entry.severity < CheckerEntrySeverity.ERROR
+            self.showing_suspects_only()
+            and entry.severity < CheckerEntrySeverity.ERROR
+            or self.hide_entry(entry)
         )
+
+    def hide_entry(self, entry: CheckerEntry) -> bool:
+        """Return whether to hide entry based upon View Options.
+
+        Args:
+            entry: Entry to be checked.
+
+        Returns: True if entry is hidden by View Options settings.
+        """
+        for view_option_filter in self.view_options_filters:
+            if view_option_filter.on and view_option_filter.matches(entry):
+                return True
+        return False
 
     def update_count_label(self, working: bool = False) -> None:
         """Update the label showing how many linked entries & suspects are in dialog.
@@ -833,7 +981,7 @@ class CheckerDialog(ToplevelDialog):
         """
         count = 0
         for index, entry in enumerate(self.entries):
-            if self.skip_suspect_entry(entry):
+            if self.skip_entry(entry):
                 continue
             count += 1
             if linenum == count:
@@ -852,7 +1000,7 @@ class CheckerDialog(ToplevelDialog):
         """
         linenum = 0
         for index, entry in enumerate(self.entries):
-            if self.skip_suspect_entry(entry):
+            if self.skip_entry(entry):
                 continue
             linenum += 1
             if index == entry_index:
@@ -984,6 +1132,11 @@ class CheckerDialog(ToplevelDialog):
             )
             maintext().clear_selection()
         self.lift()
+        if (
+            self.view_options_dialog is not None
+            and self.view_options_dialog.winfo_exists()
+        ):
+            self.view_options_dialog.lift()
 
     @classmethod
     def mark_from_rowcol(cls, rowcol: IndexRowCol) -> str:
