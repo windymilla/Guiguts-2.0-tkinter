@@ -442,7 +442,8 @@ class WordFrequencyDialog(ToplevelDialog):
         """Reset dialog."""
         super().reset()
         self.entries: list[WordFrequencyEntry] = []
-        maintext().remove_spotlights()
+        if maintext().winfo_exists():
+            maintext().remove_spotlights()
         if not self.text.winfo_exists():
             return
         self.text.delete("1.0", tk.END)
