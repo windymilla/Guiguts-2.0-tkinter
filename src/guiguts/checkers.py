@@ -1152,8 +1152,3 @@ class CheckerDialog(ToplevelDialog):
             Name for mark, e.g. "Checker123.45"
         """
         return f"{cls.get_mark_prefix()}{rowcol.index()}"
-
-    @classmethod
-    def get_mark_prefix(cls) -> str:
-        """Use reduced dialog name for common part of mark names"""
-        return cls.__name__.removesuffix("Dialog")

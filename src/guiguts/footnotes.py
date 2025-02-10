@@ -26,8 +26,7 @@ _the_footnote_checker: Optional["FootnoteChecker"] = (
     None  # pylint: disable=invalid-name
 )
 
-INSERTION_MARK_PREFIX = "ShadowFootnoteMark"
-ANCHOR_PREFIX = "Anchor"
+INSERTION_MARK_PREFIX = "Shadow"
 
 
 class FootnoteIndexStyle(StrEnum):
@@ -276,12 +275,10 @@ class FootnoteChecker:
     def clear_marks(self, mark_prefix: str) -> None:
         """Clear marks of type 'mark_prefix'.
 
-        Used to unset marks with names such as "ShadowFootnoteMark3.15", "AnchorStart7"
-        or "AnchorEnd7".
+        Used to unset marks with names such as "FootnoteCheckerShadow3.15".
 
         Arg:
-            mark_prefix; The string "ShadowFootnoteMark" (INSERTION_MARK_PREFIX) or
-                         "Anchor" (ANCHOR_PREFIX).
+            mark_prefix: Prefix of marks to be cleared.
         """
         for mark in maintext().mark_names():
             if mark.startswith(mark_prefix):
@@ -421,6 +418,7 @@ class FootnoteChecker:
         # of the next paragraph. If that blank line is preceded by a Page Marker, set marks
         # at the start of the Page Marker. Those two locations are the same.
 
+        mark_prefix = self.checker_dialog.get_mark_prefix() + INSERTION_MARK_PREFIX
         file_end = maintext().end().index()
         match_regex = r"^$"
         for an_record_index, an_record in enumerate(an_records):
@@ -498,7 +496,7 @@ class FootnoteChecker:
                 # in the paragraph there will be more than one footnote following the paragraph.
                 mark_point = maintext().rowcol(f"{blank_line_start} -1c")
                 maintext().set_mark_position(
-                    f"{INSERTION_MARK_PREFIX}{an_record_index}",
+                    f"{mark_prefix}{an_record_index}",
                     mark_point,
                     gravity=tk.RIGHT,
                 )
@@ -523,14 +521,14 @@ class FootnoteChecker:
             # will be located on the wrong page; i.e. they will end up at the start of
             # the following page.
             while mark_name := maintext().mark_next(mark_name):  # type: ignore[assignment]
-                if mark_name.startswith(f"{INSERTION_MARK_PREFIX}"):
+                if mark_name.startswith(mark_prefix):
                     # On same line?
                     if maintext().compare(fn_cur_end, "==", mark_name):
                         maintext().delete(
                             f"{fn_cur_start} -1l linestart", f"{fn_cur_end}"
                         )
                         maintext().insert(
-                            f"{INSERTION_MARK_PREFIX}{fn_record_index}",
+                            f"{mark_prefix}{fn_record_index}",
                             "\n\n" + fn_lines,
                         )
                         fn_is_deleted = True
@@ -544,9 +542,7 @@ class FootnoteChecker:
                 maintext().delete(
                     f"{fn_cur_start} -1l linestart", f"{fn_cur_end} +1l linestart"
                 )
-                maintext().insert(
-                    f"{INSERTION_MARK_PREFIX}{fn_record_index}", "\n\n" + fn_lines
-                )
+                maintext().insert(f"{mark_prefix}{fn_record_index}", "\n\n" + fn_lines)
         # Third pass
 
         # Iterate through the footnote records in reverse order removing blank lines
@@ -585,7 +581,6 @@ class FootnoteChecker:
 
         # End of final pass over footnotes.
 
-        self.clear_marks(INSERTION_MARK_PREFIX)
         # Footnotes have been moved. Rebuild anchor and footnote record arrays
         # to reflect the changes.
         self.run_check()
@@ -903,22 +898,6 @@ class FootnoteChecker:
         fn_index_style values are 'number', 'letter' or 'roman'.
         """
         maintext().undo_block_begin()
-        # Set a mark at the start of each anchor. The length of an anchor label may change
-        # as a result of reindexing.
-        an_records = self.get_an_records()
-        for an_record_index, an_record in enumerate(an_records):
-            start_mark = an_record.start
-            end_mark = an_record.end
-            maintext().set_mark_position(
-                f"{ANCHOR_PREFIX}Start{an_record_index}",
-                start_mark,
-                gravity=tk.RIGHT,
-            )
-            maintext().set_mark_position(
-                f"{ANCHOR_PREFIX}End{an_record_index}",
-                end_mark,
-                gravity=tk.RIGHT,
-            )
         # Check index style used last time Footnotes Fixup was run or default if first run.
         index_style = self.fn_index_style.get()
         an_records = self.get_an_records()
@@ -960,8 +939,6 @@ class FootnoteChecker:
             maintext().insert(f"{fn_start}", fn_line_text)
         # AN/FN file entries have changed. Update AN/FN records.
         self.run_check()
-        # Clear temporary anchor start/end marks
-        self.clear_marks(ANCHOR_PREFIX)
         # Maintain the order of function calls below.
         display_footnote_entries()
         self.display_buttons()

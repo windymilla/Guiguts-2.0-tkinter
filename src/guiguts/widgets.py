@@ -144,6 +144,14 @@ class ToplevelDialog(tk.Toplevel):
             return ToplevelDialog._toplevel_dialogs[dlg_name]  # type: ignore[return-value]
         return None
 
+    @classmethod
+    def get_mark_prefix(cls) -> str:
+        """Use reduced dialog name for common part of mark names.
+        This ensures each dialog uses unique mark names and does not clash
+        with another dialog.
+        """
+        return cls.__name__.removesuffix("Dialog")
+
     def register_tooltip(self, tooltip: "ToolTip") -> None:
         """Register a tooltip as being attached to a widget in this
         TopleveDialog so it can be destroyed when the dialog is destroyed.
