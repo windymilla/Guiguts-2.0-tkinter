@@ -1247,6 +1247,16 @@ class MainText(tk.Text):
         self.mark_set(mark, position.index())
         self.mark_gravity(mark, gravity)
 
+    def clear_marks(self, mark_prefix: str) -> None:
+        """Clear marks with given prefix.
+
+        Arg:
+            mark_prefix: Prefix of marks to be cleared.
+        """
+        for mark in self.mark_names():
+            if mark.startswith(mark_prefix):
+                self.mark_unset(mark)
+
     def get_text(self) -> str:
         """Return all the text from the text widget.
 

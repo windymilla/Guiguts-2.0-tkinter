@@ -565,9 +565,7 @@ class CheckerDialog(ToplevelDialog):
         if self.text.winfo_exists():
             self.text.delete("1.0", tk.END)
         if maintext().winfo_exists():
-            for mark in maintext().mark_names():
-                if mark.startswith(self.get_mark_prefix()):
-                    maintext().mark_unset(mark)
+            maintext().clear_marks(self.get_mark_prefix())
             maintext().remove_spotlights()
 
     def select_entry_after_undo_redo(self) -> None:

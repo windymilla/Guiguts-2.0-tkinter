@@ -272,18 +272,6 @@ class FootnoteChecker:
         end_of_file = maintext().end().index()
         self.set_lz(end_of_file)
 
-    def clear_marks(self, mark_prefix: str) -> None:
-        """Clear marks of type 'mark_prefix'.
-
-        Used to unset marks with names such as "FootnoteCheckerShadow3.15".
-
-        Arg:
-            mark_prefix: Prefix of marks to be cleared.
-        """
-        for mark in maintext().mark_names():
-            if mark.startswith(mark_prefix):
-                maintext().mark_unset(mark)
-
     def add_blank_line_at_eof(self) -> None:
         """Add a blank line at end of the file.
 
