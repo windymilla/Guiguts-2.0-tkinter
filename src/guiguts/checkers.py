@@ -565,9 +565,7 @@ class CheckerDialog(ToplevelDialog):
         if self.text.winfo_exists():
             self.text.delete("1.0", tk.END)
         if maintext().winfo_exists():
-            for mark in maintext().mark_names():
-                if mark.startswith(self.get_mark_prefix()):
-                    maintext().mark_unset(mark)
+            maintext().clear_marks(self.get_mark_prefix())
             maintext().remove_spotlights()
 
     def select_entry_after_undo_redo(self) -> None:
@@ -1152,8 +1150,3 @@ class CheckerDialog(ToplevelDialog):
             Name for mark, e.g. "Checker123.45"
         """
         return f"{cls.get_mark_prefix()}{rowcol.index()}"
-
-    @classmethod
-    def get_mark_prefix(cls) -> str:
-        """Use reduced dialog name for common part of mark names"""
-        return cls.__name__.removesuffix("Dialog")
