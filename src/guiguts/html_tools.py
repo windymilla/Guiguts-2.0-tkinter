@@ -376,18 +376,11 @@ class HTMLImageDialog(ToplevelDialog):
         )
         caption = re.sub(r"(?<=(^<p.?>|^))\[Illustration:? ?", "", caption)
         caption = re.sub(r"\](?=(</p>$|$))", "", caption)
-        # Ensure paragraphs in caption have <p> markup
+        # Remove simple <p> markup and replace newlines with return_arrow character
         if caption:
-            caption = re.sub("^(?!<p)", "<p>", caption)
-            caption = re.sub("(?<!</p>)$", "</p>", caption)
-            # If already has </p>\n\n<p...>, just reduce to a single newline
-            caption = re.sub("(?<=</p>)\n\n+(?=<p)", "\n", caption)
-            # If no </p> before but <p...> after, add </p>
-            caption = re.sub("(?<!</p>)\n\n+(?=<p)", "</p>\n", caption)
-            # If </p> before but no <p...> after, add <p>
-            caption = re.sub("(?<=</p>)\n\n+(?!<p)", "\n<p>", caption)
-            # If neither </p> before nor <p...> after, add both
-            caption = re.sub("(?<!</p>)\n\n+(?!<p)", "</p>\n<p>", caption)
+            caption = re.sub("</?p>", "", caption)
+            caption = re.sub("^\n+", "", caption)
+            caption = re.sub("\n$", "", caption)
             caption = re.sub("\n", RETURN_ARROW, caption)
         self.caption_textvariable.set(caption)
         # Clear alt text, ready for user to type in required string
@@ -403,10 +396,9 @@ class HTMLImageDialog(ToplevelDialog):
             return
         # Get caption & add some space to prettify HTML
         caption = self.caption_textvariable.get()
-        caption = re.sub("^<p", "    <p", caption)
-        caption = re.sub(RETURN_ARROW, "\n    ", caption)
         if caption:
-            caption = f'  <figcaption class="caption">\n{caption}\n  </figcaption>\n'
+            caption = re.sub(RETURN_ARROW, "\n    ", f"      {caption}")
+            caption = f"  <figcaption>\n{caption}\n  </figcaption>\n"
         # Now alt text - escape any double quotes
         alt = self.alt_textvariable.get().replace('"', "&quot;")
         alt = f' alt="{alt}"'
@@ -441,7 +433,7 @@ class HTMLImageDialog(ToplevelDialog):
         # Construct HTML
         html = f'<figure class="{alignment}{fig_class}" id="{image_id}"{style}>\n'
         html += f'  <img{img_class} src="{filename}"{img_size}{alt}>\n'
-        html += f"{caption}</figure>\n"
+        html += f"{caption}</figure>"
 
         # Replace [Illustration...] with HTML
         maintext().undo_block_begin()
@@ -471,6 +463,8 @@ class HTMLImageDialog(ToplevelDialog):
         # Only insert if definition not already in file
         if not maintext().search(class_def, "1.0", insert_point):
             maintext().insert(f"{insert_point} linestart", f"{cssdef}\n")
+        # Remove spotlight
+        maintext().remove_spotlights()
 
     def clear_image(self) -> None:
         """Clear the image and reset variables accordingly."""
