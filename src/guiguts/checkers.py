@@ -228,6 +228,7 @@ class CheckerDialog(ToplevelDialog):
         clear_on_undo_redo: bool = False,
         view_options_dialog_class: Optional[type[CheckerViewOptionsDialog]] = None,
         view_options_filters: Optional[list[CheckerFilter]] = None,
+        switch_focus_when_clicked: Optional[bool] = None,
         **kwargs: Any,
     ) -> None:
         """Initialize the dialog.
@@ -443,6 +444,10 @@ class CheckerDialog(ToplevelDialog):
             maintext().add_undo_redo_callback(
                 self.__class__.__name__, do_clear_on_undo_redo
             )
+
+        if switch_focus_when_clicked is None:
+            switch_focus_when_clicked = not is_mac()
+        self.switch_focus_when_clicked = switch_focus_when_clicked
 
         self.count_linked_entries = 0  # Not the same as len(self.entries)
         self.count_suspects = 0
@@ -1131,7 +1136,7 @@ class CheckerDialog(ToplevelDialog):
             end = maintext().index(self.mark_from_rowcol(entry.text_range.end))
             maintext().spotlight_range(IndexRange(start, end))
             maintext().set_insert_index(
-                IndexRowCol(start), focus=(focus and not is_mac())
+                IndexRowCol(start), focus=(focus and self.switch_focus_when_clicked)
             )
             maintext().clear_selection()
         self.lift()
