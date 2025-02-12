@@ -16,7 +16,7 @@ from guiguts.data import themes
 from guiguts.file import File, the_file, NUM_RECENT_FILES
 from guiguts.footnotes import footnote_check, FootnoteIndexStyle
 from guiguts.html_convert import HTMLGeneratorDialog, HTMLMarkupTypes
-from guiguts.html_tools import HTMLImageDialog, html_validator_check
+from guiguts.html_tools import HTMLImageDialog, html_validator_check, html_link_check
 from guiguts.illo_sn_fixup import illosn_check
 from guiguts.maintext import maintext
 from guiguts.mainwindow import (
@@ -791,6 +791,7 @@ Fifth Floor, Boston, MA 02110-1301 USA."""
         )
         html_menu.add_button("~Unmatched HTML Tags...", unmatched_html_markup)
         html_menu.add_button("HTML5 ~Validator (online)...", html_validator_check)
+        html_menu.add_button("HTML ~Link Checker...", html_link_check)
 
     def init_view_menu(self) -> None:
         """Create the View menu."""

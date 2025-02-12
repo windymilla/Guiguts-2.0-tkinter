@@ -1,6 +1,7 @@
 """Tools relating to HTML."""
 
 import gzip
+from html.parser import HTMLParser
 import logging
 import os.path
 import tkinter as tk
@@ -551,8 +552,8 @@ def html_validator_check() -> None:
         rerun_command=html_validator_check,
         tooltip="\n".join(
             [
-                "Left click: Select & find comment",
-                "Right click: Remove comment from this list",
+                "Left click: Select & find validation error",
+                "Right click: Remove validation error from this list",
             ]
         ),
     )
@@ -658,4 +659,244 @@ def do_validator_check(checker_dialog: CheckerDialog) -> None:
 
     if not messages:
         checker_dialog.add_entry("No errors reported by validator")
+    checker_dialog.display_entries()
+
+
+def html_link_check() -> None:
+    """Validate the current HTML file."""
+
+    class HTMLLinkCheckerDialog(CheckerDialog):
+        """Minimal class to identify dialog type so that it can exist
+        simultaneously with other checker dialogs."""
+
+        manual_page = "HTML_Menu#HTML_Link_Checker"
+
+    checker_dialog = HTMLLinkCheckerDialog.show_dialog(
+        "HTML Link Checker Results",
+        rerun_command=html_link_check,
+        tooltip="\n".join(
+            [
+                "Left click: Select & find issue",
+                "Right click: Remove issue from this list",
+            ]
+        ),
+    )
+    checker_dialog.reset()
+
+    do_link_check(checker_dialog)
+
+
+def do_link_check(checker_dialog: CheckerDialog) -> None:
+    """Do the actual check and add messages to the dialog."""
+
+    class AttrPos:
+        """Class to store attribute & position in file."""
+
+        def __init__(self, attr: str, value: str, position: tuple[int, int]) -> None:
+            """Initialize attribute pos class
+
+            Args:
+                attr: Attribute name, e.g. "href".
+                value: Reference to file or location, e.g. "images/i1.jpg" or "#page1".
+                position: Line & column number of start of attribute in file.
+            """
+            self.attr = attr
+            self.value = value
+            self.rowcol = IndexRowCol(position[0], position[1])
+
+    class UrlPos:
+        """Class to store url & position in file."""
+
+        def __init__(self, value: str, position: tuple[int, int], count: int) -> None:
+            """Initialize url pos class
+
+            Args:
+                value: File name, e.g. "images/i1.jpg".
+                position: Line & column number of start of `style` attribute in file.
+                count: Which url("...") within `style` attribute
+            """
+            self.value = value
+            self.rowcol = IndexRowCol(position[0], position[1])
+            self.count = count
+
+    class IdPos:
+        """Class to store position of id in file and whether used.
+        Name of id is used as key in dict.
+        """
+
+        def __init__(self, position: tuple[int, int]) -> None:
+            """Initialize id pos class.
+
+            Args:
+                position: Line & column number of start of `id` in file.
+            """
+            self.rowcol = IndexRowCol(position[0], position[1])
+            self.used = False
+
+    links: list[AttrPos] = []
+    ids: dict[str, IdPos] = {}  # Dict for speed of lookup
+    urls: list[UrlPos] = []
+
+    class HTMLParserLink(HTMLParser):
+        """Class to parse HTML."""
+
+        def handle_starttag(
+            self, tag: str, attrs: list[tuple[str, str | None]]
+        ) -> None:
+            """Handle an HTML start tag"""
+            for attr in attrs:
+                match attr:
+                    case ("href" | "src", value) if value is not None:
+                        links.append(AttrPos(attr[0], value, self.getpos()))
+                    case ("id", value) if value is not None:
+                        ids[value] = IdPos(self.getpos())
+                    case ("style", value) if value is not None:
+                        for num, match in enumerate(
+                            re.finditer(r"""\burl\(['"](.*?)['"]\)""", value)
+                        ):
+                            urls.append(UrlPos(match[1], self.getpos(), num))
+
+    def get_index_range(link: AttrPos) -> IndexRange:
+        """Get relevant index range, given info about tag & attribute.
+
+        Args:
+            link: Info about tag and attribute.
+        """
+        rgx = rf"""{link.attr} *= *["'][^'"]*["']"""
+        length = tk.IntVar()
+        if attr_start := maintext().search(
+            rgx, link.rowcol.index(), tk.END, regexp=True, count=length
+        ):
+            return IndexRange(
+                attr_start, maintext().index(f"{attr_start}+{length.get()}c")
+            )
+        return IndexRange(link.rowcol, link.rowcol)
+
+    def get_url_range(url: UrlPos) -> IndexRange:
+        """Get relevant index range, given info about tag & attribute.
+
+        Args:
+            url: Info about tag and attribute.
+        """
+        rgx = r"""url\(['"][^'"]*['"]\)"""
+        length = tk.IntVar()
+        count = 0
+        url_start = url.rowcol.index()
+        while url_start := maintext().search(
+            rgx, f"{url_start}+5c", tk.END, regexp=True, count=length
+        ):
+            if count == url.count:
+                return IndexRange(
+                    url_start, maintext().index(f"{url_start}+{length.get()}c")
+                )
+            count += 1
+        return IndexRange(url.rowcol, url.rowcol)
+
+    # Get list of image files to check if they are referenced
+    cur_dir = os.path.dirname(the_file().filename)
+    images_used: dict[str, bool] = {}
+    for fn in os.listdir(os.path.join(cur_dir, "images")):
+        # Force forward slash (unlike os.join) so it matches attribute value
+        images_used[f"images/{fn}"] = False
+
+    # Parse HTML - tags trigger calls to handle_starttag above
+    parser = HTMLParserLink()
+    parser.feed(maintext().get_text())
+
+    n_externals = 0
+    # Report on any broken links
+    for link in links:
+        if not link.value.strip():
+            checker_dialog.add_entry(f"Empty {link.attr} string", get_index_range(link))
+        elif re.match("https?:", link.value):
+            checker_dialog.add_entry(
+                f"External link: {link.value}", get_index_range(link)
+            )
+            n_externals += 1
+        elif link.value.startswith("#"):
+            if link.value[1:] in ids:
+                ids[link.value[1:]].used = True
+            else:
+                checker_dialog.add_entry(
+                    f"Internal link without anchor: {link.value}",
+                    get_index_range(link),
+                )
+        else:
+            if any(char.isupper() for char in link.value):
+                checker_dialog.add_entry(
+                    f"Filename contains uppercase: {link.value}", get_index_range(link)
+                )
+            if os.path.isfile(os.path.join(cur_dir, link.value)):
+                images_used[link.value] = True
+            else:
+                checker_dialog.add_entry(
+                    f"File not found: {link.value}", get_index_range(link)
+                )
+
+    # Report on any broken urls
+    for url in urls:
+        if not url.value.strip():
+            checker_dialog.add_entry("Empty url string", get_url_range(url))
+        elif re.match("https?:", url.value):
+            checker_dialog.add_entry(
+                f"External url link: {url.value}", get_url_range(url)
+            )
+            n_externals += 1
+        else:
+            if any(char.isupper() for char in url.value):
+                checker_dialog.add_entry(
+                    f"Filename contains uppercase: {url.value}", get_url_range(url)
+                )
+            if os.path.isfile(os.path.join(cur_dir, url.value)):
+                images_used[url.value] = True
+            else:
+                checker_dialog.add_entry(
+                    f"Url not found: {url.value}", get_url_range(url)
+                )
+
+    # Report any unused image files
+    unused_header = False
+    for image, used in images_used.items():
+        if not used:
+            if not unused_header:
+                checker_dialog.add_header("")
+                checker_dialog.add_header("UNUSED IMAGE FILES")
+                unused_header = True
+            checker_dialog.add_entry(f"File not used: {image}")
+
+    # Statistics summary
+    checker_dialog.add_header("")
+    checker_dialog.add_header("LINK STATISTICS")
+    checker_dialog.add_entry(f"{len(ids)} anchors (tags with id attribute)")
+    n_refs = sum(1 for link in links if link.value.startswith("#"))
+    checker_dialog.add_entry(f"{n_refs} internal links (using href)")
+    checker_dialog.add_entry(f"{len(links)-n_refs} file links (using href or src)")
+    checker_dialog.add_entry(f"{len(urls)} url links (using CSS style url)")
+
+    # Report any unused anchors - last because only informational and may be long
+    n_unused = sum(1 for id_pos in ids.values() if not id_pos.used)
+    unused_header = False
+    rgx = r"""id *= *["'][^'"]*["']"""
+    for id_name, id_pos in ids.items():
+        if id_pos.used:
+            continue
+        if not unused_header:
+            checker_dialog.add_header("")
+            checker_dialog.add_header(
+                f"{n_unused} ANCHORS WITHOUT LINKS (INFORMATIONAL)"
+            )
+            unused_header = True
+        length = tk.IntVar()
+        if attr_start := maintext().search(
+            rgx, id_pos.rowcol.index(), tk.END, regexp=True, count=length
+        ):
+            checker_dialog.add_entry(
+                f"Anchor not used: {id_name}",
+                IndexRange(
+                    attr_start, maintext().index(f"{attr_start}+{length.get()}c")
+                ),
+            )
+        else:
+            checker_dialog.add_entry(f"Anchor not used: {id_name}")
+
     checker_dialog.display_entries()
